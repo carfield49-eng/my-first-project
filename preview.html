@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Number Garden 🌱 预览版</title>
+    <style>
+      :root { color: #284033; font-family: "Nunito", "Segoe UI", system-ui, sans-serif; background: linear-gradient(180deg, #f3ffe8 0%, #e7f5ff 100%); }
+      * { box-sizing: border-box; }
+      body { margin: 0; min-height: 100vh; }
+      main { width: min(1120px, 94vw); margin: 0 auto; padding: 28px 0 48px; }
+      .hero { text-align: center; padding: 28px; border-radius: 32px; background: radial-gradient(circle at top, #fff8c7, #d7f8cd); box-shadow: 0 18px 45px #8bb98b33; }
+      h1 { margin: 0; font-size: clamp(2.4rem, 6vw, 4.8rem); }
+      h2, h3 { margin-top: 0; }
+      .hero p, .hint, .explain { font-size: 1.08rem; line-height: 1.7; }
+      .entrances { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 22px 0; }
+      button { border: 0; cursor: pointer; font: inherit; }
+      .entrances button, .seed { border-radius: 22px; padding: 16px 18px; color: #31543e; background: #ffffffcc; box-shadow: 0 10px 24px #85a9852e; font-weight: 800; font-size: 1rem; transition: transform .2s ease, background .2s ease; }
+      .entrances button:hover, .seed:hover { transform: translateY(-2px) scale(1.02); }
+      .entrances .selected, .seed.active { background: #5ec77e; color: white; }
+      .layout { display: grid; grid-template-columns: 1fr 320px; gap: 22px; align-items: start; }
+      .card { background: #ffffffd9; border: 2px solid #ffffff; border-radius: 30px; box-shadow: 0 18px 45px #7ea57e2e; padding: 24px; }
+      .module-card { min-height: 520px; }
+      .number-input { width: 150px; padding: 14px; border-radius: 18px; border: 2px solid #9bdbac; font-size: 1.5rem; text-align: center; }
+      .tree { display: grid; place-items: center; gap: 22px; margin: 24px 0; }
+      .trunk { width: 120px; height: 120px; display: grid; place-items: center; border-radius: 50% 50% 46% 46%; background: linear-gradient(135deg, #8bdd76, #49b86b); color: white; font-size: 3rem; font-weight: 900; box-shadow: inset 0 -10px 0 #359d5744; animation: grow .5s ease both; }
+      @keyframes grow { from { transform: scale(.9); opacity: .2; } to { transform: scale(1); opacity: 1; } }
+      .branches, .choice-grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; }
+      .record { position: sticky; top: 16px; }
+      .strategy-list { display: flex; flex-wrap: wrap; gap: 8px; }
+      .strategy-list span { background: #fff2a8; border-radius: 999px; padding: 8px 12px; font-weight: 700; }
+      .lab-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; margin: 18px 0; }
+      .blocks { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 14px; background: #f6fbf3; border-radius: 20px; min-height: 92px; }
+      .ten { width: 38px; height: 78px; border-radius: 13px; display: grid; place-items: center; color: white; font-weight: 900; writing-mode: vertical-rl; box-shadow: inset 0 -8px 0 #00000018; }
+      .one { width: 22px; height: 22px; border-radius: 50%; background: #ffd35a; box-shadow: inset 0 -4px 0 #dd9f1633; animation: pop .35s ease both; }
+      @keyframes pop { from { transform: translateY(8px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+      .conversion { margin: 18px 0; padding: 18px; border-radius: 22px; background: #e8f7ff; display: grid; gap: 10px; text-align: center; }
+      .conversion strong { color: #0870a9; font-size: 1.5rem; }
+      .result { display: grid; gap: 12px; }
+      .result b { font-size: 2rem; color: #2d8a51; }
+      @media (max-width: 780px) { .layout, .lab-grid { grid-template-columns: 1fr; } .entrances { grid-template-columns: repeat(2, 1fr); } .record { position: static; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header class="hero"><h1>Number Garden 🌱</h1><p>发现数字之间的关系。</p></header>
+      <nav class="entrances" aria-label="学习模块">
+        <button class="selected" data-module="explore">数字探索</button>
+        <button data-module="carry">进位实验室</button>
+        <button data-module="challenge">今日挑战</button>
+        <button data-module="borrow">退位实验室</button>
+      </nav>
+      <div class="layout"><section id="module" class="card module-card"></section><aside class="record card" id="record"></aside></div>
+    </main>
+    <script>
+      const STORAGE_KEY = 'number-garden-record-v1';
+      const state = { module: 'explore', value: 8, selected: '5 + 3', chosen: [] };
+      const readRecord = () => JSON.parse(localStorage.getItem(STORAGE_KEY) || '{"attempts":0,"correct":0,"strategies":[]}');
+      const writeRecord = (record) => localStorage.setItem(STORAGE_KEY, JSON.stringify(record));
+      const addStrategy = (strategy, correct = true) => { const record = readRecord(); const next = { attempts: record.attempts + 1, correct: record.correct + (correct ? 1 : 0), strategies: [...new Set([...(record.strategies || []), strategy])] }; writeRecord(next); renderRecord(); };
+      const splitNumber = (value) => { const safe = Math.max(1, Math.min(99, Math.floor(value || 1))); const pairs = new Set(); const add = (a, b) => a >= 0 && b >= 0 && pairs.add(`${a} + ${b}`); add(Math.min(5, safe), safe - Math.min(5, safe)); add(Math.ceil(safe / 2), Math.floor(safe / 2)); add(Math.max(0, safe - 2), Math.min(2, safe)); if (safe < 20) pairs.add(`${safe + 2} - 2`); if (safe <= 10) pairs.add(`10 - ${10 - safe}`); return [...pairs].slice(0, 5); };
+      const blocks = (tens, ones, color) => `<div class="blocks">${Array.from({ length: tens }, () => `<div class="ten" style="background:${color}">十</div>`).join('')}${Array.from({ length: ones }, () => '<div class="one"></div>').join('')}</div>`;
+      function renderRecord() { const record = readRecord(); const accuracy = record.attempts ? Math.round(record.correct / record.attempts * 100) : 0; document.querySelector('#record').innerHTML = `<h3>我的探索记录</h3><p><strong>${record.attempts}</strong> 次探索 · 正确率 <strong>${accuracy}%</strong></p><div class="strategy-list">${record.strategies?.length ? record.strategies.map((s) => `<span>${s}</span>`).join('') : '<span>先种下第一颗数字种子吧</span>'}</div>`; }
+      function renderModule() {
+        const root = document.querySelector('#module');
+        if (state.module === 'explore') { const relations = splitNumber(state.value); root.innerHTML = `<h2>数字探索</h2><p class="hint">输入一个数字，看看它能长出哪些“关系枝叶”。</p><input class="number-input" type="number" min="1" max="99" value="${state.value}" /><div class="tree"><div class="trunk">${state.value}</div><div class="branches">${relations.map((r) => `<button class="seed ${state.selected === r ? 'active' : ''}" data-relation="${r}">${r}</button>`).join('')}</div></div><p class="explain">${state.selected} 和 ${state.value} 有关系，因为它们描述的是同一朵数字花：只是从“合起来”“拆开”或“补到十”的不同角度观察。</p>`; }
+        if (state.module === 'carry') root.innerHTML = `<h2>进位实验室</h2><p class="hint">27 + 18：进位不是背规则，而是把 10 个一换成 1 个十。</p><div class="lab-grid"><div><h3>27</h3>${blocks(2, 7, '#81c784')}</div><div><h3>18</h3>${blocks(1, 8, '#64b5f6')}</div></div><div class="conversion"><span>7个一 + 8个一 = 15个一</span><strong>10个一 ⇢ 1个十</strong><span>剩下 5 个一，所以是 4个十 + 5个一</span></div><div class="result">${blocks(4, 5, '#ffb74d')}<b>结果：45</b></div>`;
+        if (state.module === 'borrow') root.innerHTML = `<h2>退位实验室</h2><p class="hint">42 - 18：退位不是“借东西”，而是把 1 个十转换成 10 个一。</p><div class="lab-grid"><div><h3>原来：4个十 2个一</h3>${blocks(4, 2, '#ba68c8')}</div><div><h3>转换后：3个十 12个一</h3>${blocks(3, 12, '#9575cd')}</div></div><div class="conversion"><span>2个一不够减8个一</span><strong>1个十 ⇢ 10个一</strong><span>12个一 - 8个一 = 4个一；3个十 - 1个十 = 2个十</span></div><div class="result">${blocks(2, 4, '#4db6ac')}<b>结果：24</b></div>`;
+        if (state.module === 'challenge') { const options = ['10 + 5', '8 + 7', '20 - 5', '9 + 9']; root.innerHTML = `<h2>今日挑战</h2><p class="hint">15 可以怎么组成？选出你发现的关系。可能不止一个答案。</p><div class="choice-grid">${options.map((o) => `<button class="seed ${state.chosen.includes(o) ? 'active' : ''}" data-choice="${o}">${o}</button>`).join('')}</div><p class="explain">${state.chosen.length ? '观察：同一个数字可以由加法、减法、凑十等多条小路到达。' : '先试着选一片叶子，不要着急判断对错。'}</p>`; }
+      }
+      document.addEventListener('click', (event) => { const target = event.target; if (!target.matches('button, input')) return; if (target.dataset.module) { state.module = target.dataset.module; document.querySelectorAll('[data-module]').forEach((button) => button.classList.toggle('selected', button.dataset.module === state.module)); if (state.module === 'carry' || state.module === 'borrow') addStrategy('单位转换'); renderModule(); } if (target.dataset.relation) { state.selected = target.dataset.relation; addStrategy(state.selected.includes('10') ? '凑十' : '拆成五和剩下'); renderModule(); } if (target.dataset.choice) { state.chosen = state.chosen.includes(target.dataset.choice) ? state.chosen.filter((x) => x !== target.dataset.choice) : [...state.chosen, target.dataset.choice]; addStrategy(['10 + 5', '8 + 7', '20 - 5'].includes(target.dataset.choice) ? '十位与个位' : '数字关系理解不足', ['10 + 5', '8 + 7', '20 - 5'].includes(target.dataset.choice)); renderModule(); } });
+      document.addEventListener('input', (event) => { if (event.target.classList.contains('number-input')) { state.value = Number(event.target.value); state.selected = splitNumber(state.value)[0]; renderModule(); } });
+      renderModule(); renderRecord();
+    </script>
+  </body>
+</html>
